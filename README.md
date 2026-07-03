@@ -36,8 +36,50 @@ cp .env.example .env   # completar con los valores reales
 .venv/bin/python main.py
 ```
 
-- **1) Listado** — busca los documentos del usuario indicado y genera/actualiza `refs.json`. Si el archivo ya existe hace *merge*: agrega solo los IDs nuevos como `pending` y conserva el avance existente.
-- **2) Subir** — procesa los pendientes. Pregunta cuántos documentos procesar, o `*` para todo el archivo.
+```
+=== Reemplazo de PDFs ===
+  1) Listado  — generar/actualizar refs.json
+  2) Subir    — procesar pendientes y subir nuevas versiones
+  0) Salir
+Opción:
+```
+
+**Opción 1 — Listado.** Pide el usuario cuyos documentos se van a buscar
+(Enter acepta el valor entre corchetes, tomado del `.env`) y recorre la
+búsqueda completa filtrando por `PD_DOCUMENT_TYPE_IDS`:
+
+```
+Opción: 1
+Usuario a buscar [usuario@dominio.com]:
+205 referencia(s) nueva(s) agregadas; 1506 en total en refs.json.
+```
+
+Si `refs.json` no existe, lo crea con todas las referencias en `pending`.
+Si ya existe hace *merge*: agrega solo los IDs nuevos y conserva el avance
+existente. Por eso es seguro (y recomendable) repetir esta opción cuando la
+organización sigue cargando documentos.
+
+**Opción 2 — Subir.** Pregunta cuántos documentos pendientes procesar; un
+número procesa ese lote y `*` procesa todo el archivo:
+
+```
+Opción: 2
+¿Cuántos documentos procesar? (* = todo el archivo): 10
+1504 pendiente(s) de 1506 en refs.json.
+[1/10] 6a47f27d5748d7a09937f3b3: worked (códigos: ['EXP-001', 'EXP-001'], data: 13 campo(s))
+[2/10] 6a47f280c7b18f4881b55d29: untouched (códigos: ninguno, data: 12 campo(s))
+...
+Procesados 10 documento(s).
+```
+
+Cada línea muestra el resultado del documento: `worked` (página eliminada y
+nueva versión subida) o `untouched` (sin código de barras coincidente), los
+códigos detectados en la primera página y cuántos campos de data conserva.
+
+**Interrupción y reanudación.** Se puede cortar en cualquier momento
+(Ctrl+C); el avance queda guardado en `refs.json`. Al volver a entrar a la
+opción 2, continúa con los `pending` y reintenta los que quedaron en
+`working`. Los errores de API o de conexión se muestran y regresan al menú.
 
 ### Scripts individuales
 
