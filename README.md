@@ -126,6 +126,63 @@ login ──► búsqueda paginada ──► refs.json (status: pending)
 
 El listado se guarda con escritura atómica tras cada transición: el proceso puede interrumpirse en cualquier momento y reanudarse relanzando el mismo comando.
 
+## Preguntas frecuentes y troubleshooting
+
+**Si pido 100 y ya hay 20 trabajados, ¿qué hace?**
+La cantidad aplica solo a los pendientes. Los `worked` y `untouched` se
+excluyen antes de contar: con 1,506 referencias y 20 trabajadas, responder
+`100` procesa 100 documentos nuevos (no 80) y deja 1,386 pendientes. La
+cantidad siempre significa "cuántos más avanzar ahora"; se puede correr por
+lotes indefinidamente sin duplicar trabajo.
+
+**El proceso se interrumpió (Ctrl+C, corte de red, error).**
+No hay que hacer nada especial: el avance se guarda tras cada documento.
+Relanza el menú y entra de nuevo a "Subir"; continúa con los `pending` y
+reintenta los que quedaron en `working`.
+
+**¿Puedo repetir la opción "Listado" sin perder el avance?**
+Sí. Hace merge: agrega solo los IDs nuevos como `pending` y no toca los
+estados existentes. Lo que no debes hacer es regenerar `refs.json`
+redirigiendo la salida de `search_documents.py --refs` sobre el mismo
+archivo: eso sí reinicia todos los estados.
+
+**¿Cómo reproceso un documento puntual?**
+Edita su entrada en `refs.json` y cambia `status` a `"pending"`. Ojo: si ya
+se había subido, la versión actual del servidor ya no tiene la página del
+código de barras, por lo que terminará en `untouched` (no se recorta dos
+veces).
+
+**Login falla con 403 Forbidden.**
+Credenciales o formato incorrecto. Verifica que el body del login use
+`organizationId` (no `organization`) y que `PD_LOGIN_PATH` sea la ruta
+correcta de tu instalación (en cloud: `/svc/api/sessions/login`).
+
+**ValidationError con `rowsPerPage`.**
+El API solo acepta `"15"`, `"50"` o `"100"` (como string). Ajusta
+`PD_PAGE_SIZE` a uno de esos valores.
+
+**Error 500 "Result window is too large".**
+Es el límite de 10,000 resultados de Elasticsearch. El script lo maneja
+automáticamente con un cursor por fecha (`sortField: createdAt` +
+`dateFrom`); si lo ves, probablemente estás llamando al API por fuera del
+script. Solo queda sin salida si más de 10,000 documentos comparten la misma
+fecha de creación (el script lo advierte y devuelve lo acumulado).
+
+**Subida falla con "document data must be in Data URI format".**
+El PDF en `documents[0]` debe ir como `data:application/pdf;base64,...`;
+base64 plano se rechaza. El script ya lo envía así.
+
+**El log muestra `data: VACÍA`.**
+El documento no tiene campos capturados. La subida funciona igual, pero
+revisa que sea esperado: la `data` que se envía es la que conservará la
+nueva versión.
+
+**Se llenó el disco.**
+Cada documento guarda original y copia (~40 MB por pasaporte). Procesa por
+lotes y mueve o borra el contenido de `ori_file/`/`upd_file/` ya verificado;
+el estado vive en `refs.json`, no en las carpetas, así que borrar PDFs
+locales no afecta la reanudación.
+
 ## Consideraciones
 
 - **Espacio en disco**: cada PDF ronda los 20 MB y se guarda dos veces (original y recortado). Estima ~40 MB por documento y usa `--limit` para procesar por lotes si el disco no alcanza.
