@@ -1,0 +1,12 @@
+# Credenciales
+.env
+
+# Entorno y caché de Python
+.venv/
+__pycache__/
+*.pyc
+
+# Artefactos de corrida (estado y PDFs descargados/recortados)
+refs.json
+ori_file/
+upd_file/
