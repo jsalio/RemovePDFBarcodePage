@@ -28,6 +28,7 @@ import io
 import json
 import os
 import sys
+import time
 
 import fitz  # PyMuPDF
 import requests
@@ -39,6 +40,9 @@ from search_documents import ApiError, authenticate, get_document, load_config
 
 ORI_DIR = "ori_file"
 UPD_DIR = "upd_file"
+
+# Reintentos por documento ante errores de red/API antes de saltarlo.
+RETRY_DELAYS = [5, 15, 30]
 
 
 def load_listing(path: str) -> list:
@@ -116,7 +120,7 @@ def upload_document(
         "x-api-key": credentials["apiKey"],
         "x-api-secret": credentials["secret"],
     }
-    response = session.post(url, json=payload, headers=headers, timeout=120)
+    response = session.post(url, json=payload, headers=headers, timeout=600)
     if not response.ok:
         raise ApiError(
             f"Subida falló ({response.status_code}) en {url}: {response.text[:500]}"
@@ -196,14 +200,46 @@ def process_listing(listing_path: str, limit: int = None) -> int:
         pending = pending[:limit]
 
     processed = 0
+    failed = 0
     with requests.Session() as session:
         credentials = authenticate(session, config)
-        for ref in pending:
+        for index, ref in enumerate(pending, start=1):
             # Marcar "working" antes de empezar: si el proceso muere aquí,
             # la siguiente corrida sabe que este documento quedó a medias.
             ref["status"] = "working"
             save_listing(listing_path, listing)
-            result = process_ref(session, config, credentials, ref)
+
+            result = None
+            for attempt, delay in enumerate([0] + RETRY_DELAYS):
+                if delay:
+                    print(
+                        f"    reintento {attempt}/{len(RETRY_DELAYS)} de "
+                        f"{ref['id']} en {delay}s...",
+                        file=sys.stderr,
+                    )
+                    time.sleep(delay)
+                    # Renovar la sesión: el fallo pudo ser por expiración.
+                    try:
+                        credentials = authenticate(session, config)
+                    except (ApiError, requests.RequestException):
+                        continue
+                try:
+                    result = process_ref(session, config, credentials, ref)
+                    break
+                except (ApiError, requests.RequestException) as error:
+                    print(f"    error: {error}", file=sys.stderr)
+
+            if result is None:
+                # Se agotaron los reintentos: queda en "working" y se
+                # reintentará en la próxima corrida; seguir con el resto.
+                failed += 1
+                print(
+                    f"[{index}/{len(pending)}] {ref['id']}: FALLÓ tras "
+                    f"{len(RETRY_DELAYS) + 1} intentos; continúa el siguiente.",
+                    file=sys.stderr,
+                )
+                continue
+
             save_listing(listing_path, listing)
             processed += 1
             data_info = (
@@ -212,11 +248,17 @@ def process_listing(listing_path: str, limit: int = None) -> int:
                 else "data: VACÍA"
             )
             print(
-                f"[{processed}/{len(pending)}] {result['documentId']}: "
+                f"[{index}/{len(pending)}] {result['documentId']}: "
                 f"{ref['status']} (códigos: {result['barcodes'] or 'ninguno'}, "
                 f"{data_info})",
                 file=sys.stderr,
             )
+    if failed:
+        print(
+            f"Advertencia: {failed} documento(s) fallaron y quedaron en "
+            "\"working\"; se reintentarán en la próxima corrida.",
+            file=sys.stderr,
+        )
     return processed
 
 

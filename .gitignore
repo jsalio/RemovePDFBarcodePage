@@ -10,3 +10,9 @@ __pycache__/
 refs.json
 ori_file/
 upd_file/
+
+# Artefactos de compilación del ejecutable
+build/
+dist/
+*.spec
+*.7z

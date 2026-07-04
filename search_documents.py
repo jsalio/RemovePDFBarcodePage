@@ -195,7 +195,9 @@ def get_document(
         "x-api-key": credentials["apiKey"],
         "x-api-secret": credentials["secret"],
     }
-    response = session.get(url, headers=headers, timeout=60)
+    # El detalle incluye el binario completo (~25 MB): en conexiones lentas
+    # la lectura puede tardar varios minutos.
+    response = session.get(url, headers=headers, timeout=600)
     if not response.ok:
         raise ApiError(
             f"Obtener documento falló ({response.status_code}) en {url}: "

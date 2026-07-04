@@ -199,6 +199,14 @@ El documento no tiene campos capturados. La subida funciona igual, pero
 revisa que sea esperado: la `data` que se envía es la que conservará la
 nueva versión.
 
+**Error de conexión: "Read timed out".**
+Un tropiezo de red o una conexión lenta con los PDFs grandes (~25 MB por
+transferencia). El script reintenta cada documento hasta 4 veces (esperas de
+5/15/30 s, renovando la sesión por si expiró) y, si aun así falla, lo deja
+en `working` y **continúa con el siguiente** — un documento problemático no
+aborta el lote. Los fallidos se reintentan automáticamente en la próxima
+corrida. Los timeouts de descarga y subida son de 10 minutos por request.
+
 **Se llenó el disco.**
 Cada documento guarda original y copia (~40 MB por pasaporte). Procesa por
 lotes y mueve o borra el contenido de `ori_file/`/`upd_file/` ya verificado;
