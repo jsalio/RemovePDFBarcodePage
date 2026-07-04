@@ -126,6 +126,28 @@ login ──► búsqueda paginada ──► refs.json (status: pending)
 
 El listado se guarda con escritura atómica tras cada transición: el proceso puede interrumpirse en cualquier momento y reanudarse relanzando el mismo comando.
 
+## Ejecutable de Windows
+
+Hay dos formas de obtener `RemovePDFBarcodePage.exe`:
+
+1. **Compilarlo en una máquina Windows** (requiere Python 3.9+):
+
+   ```bat
+   build_windows.bat
+   ```
+
+   El ejecutable queda en `dist\RemovePDFBarcodePage.exe`.
+
+2. **GitHub Actions**: el workflow `build-windows.yml` compila el ejecutable
+   en un runner de Windows al lanzarlo manualmente (pestaña Actions → Build
+   Windows executable → Run workflow) o al pushear un tag `v*`. El `.exe`
+   queda como artefacto descargable del run. Requiere que la cuenta tenga
+   GitHub Actions habilitado (facturación al día).
+
+Para usarlo: copia el `.env` junto al `.exe` (o ejecuta el `.exe` desde una
+carpeta que lo contenga). `refs.json`, `ori_file/` y `upd_file/` se crean en
+esa misma carpeta de trabajo.
+
 ## Preguntas frecuentes y troubleshooting
 
 **Si pido 100 y ya hay 20 trabajados, ¿qué hace?**
