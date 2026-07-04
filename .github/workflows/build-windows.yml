@@ -1,0 +1,34 @@
+name: Build Windows executable
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt pyinstaller
+
+      - name: Compilar ejecutable
+        run: >
+          pyinstaller --onefile --console --name RemovePDFBarcodePage
+          --hidden-import fitz main.py
+
+      - name: Prueba de humo (abrir menú y salir)
+        shell: cmd
+        run: echo 0| dist\RemovePDFBarcodePage.exe
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RemovePDFBarcodePage-windows
+          path: dist/RemovePDFBarcodePage.exe
